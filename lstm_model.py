@@ -6,7 +6,7 @@ import torch.optim as optim
 import torch.utils.data as data
 import matplotlib.pyplot as plt
 
-EPOCHS = 1
+EPOCHS = 500
 LOOK_BACK = 1
 TRAIN_SIZE = 0.7
 LSTM_PARAMS = {
