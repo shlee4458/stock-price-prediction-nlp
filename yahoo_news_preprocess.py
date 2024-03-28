@@ -169,11 +169,11 @@ def collapse_by_date(df):
     return df
     
 if __name__ == "__main__":
-    filename1, filename2 = "yahoo_news.csv", "AAPL.csv"
+    filename1, filename2 = "./data/yahoo_news.csv", "./data/AAPL.csv"
     df = load_data(filename1)
     df = collapse_by_date(df)
     df = add_sentiment_nltk(df)
     # df = add_sentiment_mistral(df)
     df = merge_with_reliable(df, filename2)
     df = add_up(df)
-    df.to_csv("yahoo_news_preprocessed.csv", index=False)
+    df.to_csv("./data/yahoo_news_preprocessed.csv", index=False)
