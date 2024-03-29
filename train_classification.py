@@ -12,12 +12,14 @@ from lstm_models import LSTM_Simple
 LOOKBACK = 10
 EPOCHS = 50
 BATCH_SIZE = 16
-COLS = ["close", "open", "high", "low", "sentiment_nltk"]
-OUTPUT = "close"
+COLS = ["up", "close", "open", "high", "low", "sentiment_nltk"]
+OUTPUT = "up"
 
 TRAIN_SIZE = 0.8
 PREDICT_NUM = 1
 VALIDATION_SPLIT = 0.1
+LOSS = "binary_crossentropy"
+CLASSIFICATION = True
 
 DEBUG = False
 SAVE = True
@@ -41,7 +43,7 @@ def split_x_y(data):
     return X, y    
 
 def split_train_test(X, y, train_size):
-    print(f"This is shape of the data: {data.shape}")
+    # print(f"This is shape of the data: {data.shape}")
     X_train, y_train = X[:train_size], y[:train_size]
     X_test, y_test = X[train_size - LOOKBACK:], y[train_size - LOOKBACK:]
 
@@ -49,7 +51,7 @@ def split_train_test(X, y, train_size):
 
 def train_lstm(X_train, y_train):
     num_features, lookback = X_train.shape[1], X_train.shape[2]
-    lstm = LSTM_Simple(num_features, lookback, 1)
+    lstm = LSTM_Simple(num_features, lookback, 1, LOSS)
 
     model = lstm.get_model()
     history = model.fit(X_train, y_train,
@@ -67,7 +69,6 @@ def train_lstm(X_train, y_train):
     if SAVE:
         val_filename = f"./output/val/val-ep-{EPOCHS}-lb-{LOOKBACK}.png"
         plt.savefig(val_filename)
-
 
     return model
 
@@ -109,7 +110,7 @@ def forecast(model, X_train, X_test, dates, scaler):
 
 def plot_predict(original, predicted, save=True):
     original = original[['date', OUTPUT]]
-    original['date']=pd.to_datetime(original['date'])
+    original['date'] = pd.to_datetime(original['date'])
     train_size = int(TRAIN_SIZE * len(original))
     train, test = original[:train_size], original[train_size:]
 
@@ -126,15 +127,12 @@ def plot_predict(original, predicted, save=True):
 
     plt.show()
 
-def evaluate_model(y_test, y_pred):
-    y_pred = y_pred[[OUTPUT]].values
-    mse = mean_squared_error(y_test, y_pred)
-    return mse
-    # error = np.sqrt(mse)
-    # return error
+def evaluate_model(model, X_test, y_test):
+    scores = model.evaluate(X_test, y_test, verbose=0)
+    print("Accuracy: %.2f%%" % (scores[1]*100))
 
 def write_to_csv(error):
-    filename = "./output/collected_data.csv"
+    filename = "./output/classification_data.csv"
     header = ["epoch", "lookback", "num_cols", "error", "output"] # can add different variables
     row_formatted = f"{EPOCHS},{LOOKBACK},{len(COLS)},{error:.4f},{OUTPUT}"
     row = row_formatted.split(",")
@@ -148,8 +146,9 @@ def write_to_csv(error):
         writer.writerow(row)
     return
 
-if __name__ == "__main__":
+def main():
 
+    # TODO: add arg parser for automating data collection using .sh
     # load the data
     filename = "./data/yahoo_news_preprocessed.csv"
     data, dates, original = load_data(filename)
@@ -174,3 +173,6 @@ if __name__ == "__main__":
 
     # write the result to a csv file for analysis
     write_to_csv(error)
+
+if __name__ == "__main__":
+    main()

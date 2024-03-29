@@ -1,4 +1,0 @@
-epoch,lookback,num_cols,error,output
-200,30,5,46.6685,close
-100,30,5,2308.2738,close
-50,10,5,2182.1347,close
