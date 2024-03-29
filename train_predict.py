@@ -1,21 +1,27 @@
+import os
+import csv
 import numpy as np
 import pandas as pd
 from matplotlib import pyplot as plt
 from sklearn.preprocessing import StandardScaler
+from sklearn.metrics import mean_squared_error
 import seaborn as sns
 
 from lstm_models import LSTM_Simple
 
-TRAIN_SIZE = 0.8
-INITIAL_TRAIN_SIZE = 500
-PREDICT_NUM = 1
-LOOKBACK = 30
-EPOCHS = 100
+LOOKBACK = 10
+EPOCHS = 50
 BATCH_SIZE = 16
-VALIDATION_SPLIT = 0.1
 COLS = ["close", "open", "high", "low", "sentiment_nltk"]
+OUTPUT = "close"
+
+TRAIN_SIZE = 0.8
+PREDICT_NUM = 1
+VALIDATION_SPLIT = 0.1
 
 DEBUG = False
+SAVE = True
+PLOT = True
 
 # TODO: 
 # play with hyperparameters: LOOKBACK, EPOCHS, BATCHSIZE,
@@ -31,7 +37,7 @@ def split_x_y(data):
     X, y = [], [] # X: (1513, 14, 5), (1513, 1)
     for i in range(LOOKBACK, len(data) - PREDICT_NUM + 1):
         X.append(data[i - LOOKBACK:i, 0:data.shape[1]])
-        y.append(data[i + PREDICT_NUM - 1:i + PREDICT_NUM, 0]) # use close price as the output
+        y.append(data[i + PREDICT_NUM - 1:i + PREDICT_NUM, COLS.index(OUTPUT)]) # use close price as the output
     return X, y    
 
 def split_train_test(X, y, train_size):
@@ -43,8 +49,8 @@ def split_train_test(X, y, train_size):
 
 def train_lstm(X_train, y_train):
     num_features, lookback = X_train.shape[1], X_train.shape[2]
-
     lstm = LSTM_Simple(num_features, lookback, 1)
+
     model = lstm.get_model()
     history = model.fit(X_train, y_train,
                         epochs=EPOCHS, 
@@ -52,23 +58,29 @@ def train_lstm(X_train, y_train):
                         validation_split=VALIDATION_SPLIT,
                         verbose=1)
 
-    plt.plot(history.history['loss'], label='Training loss')
-    plt.plot(history.history['val_loss'], label='Validation loss')
-    plt.legend()
-    plt.show()
+    if PLOT:
+        plt.plot(history.history['loss'], label='Training loss')
+        plt.plot(history.history['val_loss'], label='Validation loss')
+        plt.legend()
+        plt.show()
+
+    if SAVE:
+        val_filename = f"./output/val/val-ep-{EPOCHS}-lb-{LOOKBACK}.png"
+        plt.savefig(val_filename)
+
 
     return model
 
-def forecast(model, X_train, X_test, y_test, dates, scaler):
+def forecast(model, X_train, X_test, dates, scaler):
     train_size = len(X_train)
     test_dates = dates[train_size:]
 
     # make prediction
     prediction = model.predict(X_test) # X_train: shape = (num_rows, window_size, 1)
     prediction_copies = np.repeat(prediction, len(COLS), axis=-1)
-    y_pred_future = scaler.inverse_transform(prediction_copies)[:,0]
-    predict_data = pd.DataFrame({'date': np.array(test_dates), 'close': y_pred_future})    
-    predict_data['date'] = pd.to_datetime(predict_data['date'])
+    y_pred_output = scaler.inverse_transform(prediction_copies)[:,0]
+    y_pred = pd.DataFrame({'date': np.array(test_dates), OUTPUT: y_pred_output})    
+    y_pred['date'] = pd.to_datetime(y_pred['date'])
 
     # from pandas.tseries.holiday import USFederalHolidayCalendar
     # from pandas.tseries.offsets import CustomBusinessDay
@@ -89,64 +101,76 @@ def forecast(model, X_train, X_test, y_test, dates, scaler):
         # print("predict shape: ", X_train[-n_days_for_prediction:].shape)
         print("This is the prediction before scaling: ", prediction, "\n")
         print("Actual price: ", )
-        print("This is the predicted price in the furture: ", y_pred_future, "\n")
+        print("This is the predicted price in the furture: ", y_pred_output, "\n")
         print("test_dates length:", len(test_dates))
-        print("pred_future length", len(y_pred_future))
+        print("pred_future length", len(y_pred_output))
 
-    return predict_data
+    return y_pred
 
-def plot_predict(original, predicted):
-    original = original[['date', 'close']]
+def plot_predict(original, predicted, save=True):
+    original = original[['date', OUTPUT]]
     original['date']=pd.to_datetime(original['date'])
     train_size = int(TRAIN_SIZE * len(original))
     train, test = original[:train_size], original[train_size:]
-    
-    test_filename = f"./output/test-ep-{EPOCHS}-lb-{LOOKBACK}.png"
 
-    plt.figure(figsize=(15, 9))
-    sns.lineplot(data=train, x='date', y='close', label='Train', color='blue')
-    sns.lineplot(data=test, x='date', y='close', label='Test', color='green')
-    sns.lineplot(data=predicted, x='date', y='close', label='Predicted', color='orange')
-    plt.legend()
-    plt.savefig(test_filename)
+    if PLOT:
+        plt.figure(figsize=(15, 9))
+        sns.lineplot(data=train, x='date', y=OUTPUT, label='Train', color='blue')
+        sns.lineplot(data=test, x='date', y=OUTPUT, label='Test', color='green')
+        sns.lineplot(data=predicted, x='date', y=OUTPUT, label='Predicted', color='orange')
+        plt.legend()
+
+    if save:
+        test_filename = f"./output/test/test-ep-{EPOCHS}-lb-{LOOKBACK}.png"
+        plt.savefig(test_filename)
 
     plt.show()
+
+def evaluate_model(y_test, y_pred):
+    y_pred = y_pred[[OUTPUT]].values
+    mse = mean_squared_error(y_test, y_pred)
+    return mse
+    # error = np.sqrt(mse)
+    # return error
+
+def write_to_csv(error):
+    filename = "./output/collected_data.csv"
+    header = ["epoch", "lookback", "num_cols", "error", "output"] # can add different variables
+    row_formatted = f"{EPOCHS},{LOOKBACK},{len(COLS)},{error:.4f},{OUTPUT}"
+    row = row_formatted.split(",")
+    file_exists = os.path.isfile(filename)
+
+    with open(filename, 'a', newline='') as file:
+        writer = csv.writer(file)
+
+        if not file_exists:
+            writer.writerow(header)
+        writer.writerow(row)
+    return
 
 if __name__ == "__main__":
 
     # load the data
     filename = "./data/yahoo_news_preprocessed.csv"
     data, dates, original = load_data(filename)
-    # print(data)
 
     # scale the data
     scaler = StandardScaler()
     scaler = scaler.fit(data)
     data_scaled = scaler.transform(data)
 
+    # split the data
     X, y = split_x_y(data_scaled)
     train_size = int(len(original) * TRAIN_SIZE)
     X_train, y_train, X_test, y_test = split_train_test(X, y, train_size)
     model = train_lstm(X_train, y_train)
 
     # predict and plot the data
-    predicted = forecast(model, X_train, X_test, y_test, dates, scaler)
-    plot_predict(original, predicted)
+    y_pred = forecast(model, X_train, X_test, dates, scaler)
+    plot_predict(original, y_pred, SAVE)
 
+    # evaluate the test and actual
+    error = evaluate_model(y_test, y_pred)
 
-    # note--ignore for now please;
-    # we can train using "train_size" and predict the price at the train_size + 1
-    # we can have reasonable initial train_size, and iterate until the last day of which we have the data
-
-    # split the data
-    # X, y = split_x_y(data_scaled)
-    # for train_size in range(INITIAL_TRAIN_SIZE, len(data_scaled)):
-    #     X_train, y_train, _, _ = split_train_test(X, y, train_size)
-
-    #     # train lstm
-    #     # print(X_train)
-    #     model = train_lstm(X_train, y_train)
-
-    #     # predict and plot the data
-    #     predicted = forecast(model, X_train, dates, scaler)
-    #     plot_predict(original, predicted)
+    # write the result to a csv file for analysis
+    write_to_csv(error)

@@ -1,3 +1,6 @@
+from dotenv import load_dotenv
+import os
+
 import pandas as pd
 import numpy as np
 
@@ -12,8 +15,10 @@ from collections import Counter
 import nltk
 from nltk.sentiment import SentimentIntensityAnalyzer
 
+load_dotenv()
+
 model_name = "mistralai/Mistral-7B-Instruct-v0.2"
-hf_token = "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"
+hf_token = os.getenv("HF_TOKEN")
 adapter = "./trained-model"
 hub_id = "yishbb"
 
