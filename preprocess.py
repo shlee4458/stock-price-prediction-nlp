@@ -80,6 +80,9 @@ def add_sentiment_nltk(df):
     df['sentiment_nltk'] = df['content'].apply(get_sentiment_score)
     return df
 
+def add_sentiment_finbert(df):
+    pass
+
 def add_sentiment_mistral(df):
     compute_dtype = getattr(torch, "float16")
     bnb_config = BitsAndBytesConfig(
@@ -134,7 +137,7 @@ def _generate_test_prompt(data):
 
 def aggregate_sentiment(arr):
     '''
-    Averages the sentiment value across the same day, 
+    Averages the sentiment value across the same day.
     '''
 
     # return the most frequent

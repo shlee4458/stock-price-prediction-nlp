@@ -5,7 +5,7 @@ from keras import backend as K
 def rmse(y_true, y_pred):
     return K.sqrt(K.mean(K.square(y_pred - y_true)))
 
-class LSTM_Simple:
+class LSTM_Simple():
     # (5, 14, 64) -> (64, 32) -> (32, 1)
     def __init__(self, num_features, lookback, output_size, loss, classification=False):
         model = Sequential()
@@ -20,3 +20,7 @@ class LSTM_Simple:
     
     def get_model(self):
         return self.model
+    
+class LSTM_Deep():
+    pass
+    

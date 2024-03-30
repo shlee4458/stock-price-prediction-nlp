@@ -7,10 +7,10 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import mean_squared_error
 import seaborn as sns
 
-from lstm_models import LSTM_Simple
+from lstm_models import LSTM_Simple, LSTM_Deep
 
-LOOKBACK = 14
-EPOCHS = 50
+LOOKBACK = 60
+EPOCHS = 500
 BATCH_SIZE = 16
 COLS = ["close", "open", "high", "low", "sentiment_nltk"]
 OUTPUT = "close"
@@ -20,6 +20,7 @@ PREDICT_NUM = 1
 VALIDATION_SPLIT = 0.1
 LOSS = "mse"
 CLASSIFICATION = False
+MODEL = "simple"
 
 DEBUG = False
 SAVE = True
@@ -49,9 +50,15 @@ def split_train_test(X, y, train_size):
 
     return np.array(X_train), np.array(y_train), np.array(X_test), np.array(y_test)
 
+
 def train_lstm(X_train, y_train):
     num_features, lookback = X_train.shape[1], X_train.shape[2]
-    lstm = LSTM_Simple(num_features, lookback, 1, LOSS, CLASSIFICATION)
+
+    # get the lstm model
+    if MODEL == "simple":
+        lstm = LSTM_Simple(num_features, lookback, 1, LOSS, CLASSIFICATION)
+    elif MODEL == "deep":
+        lstm = LSTM_Deep(num_features, lookback, 1, LOSS, CLASSIFICATION)
 
     model = lstm.get_model()
     history = model.fit(X_train, y_train,
@@ -131,7 +138,7 @@ def plot_predict(original, predicted, save=True):
 
     if save:
         version = 0
-        test_filename = f"./output/test/test-ep-{EPOCHS}-lb-{LOOKBACK}-v{version}.png"
+        test_filename = f"./output/test/test-md-{MODEL}-ep-{EPOCHS}-lb-{LOOKBACK}-v{version}.png"
         file_exists = os.path.isfile(test_filename)
         
         while file_exists:
@@ -151,8 +158,8 @@ def evaluate_model(y_test, y_pred):
 
 def write_to_csv(error):
     filename = "./output/regression_data.csv"
-    header = ["epoch", "lookback", "num_cols", "error", "output"] # can add different variables
-    row_formatted = f"{EPOCHS},{LOOKBACK},{len(COLS)},{error:.4f},{OUTPUT}"
+    header = ["model", "epoch", "lookback", "num_cols", "error", "output"] # can add different variables
+    row_formatted = f"{MODEL},{EPOCHS},{LOOKBACK},{len(COLS)},{error:.4f},{OUTPUT}"
     row = row_formatted.split(",")
     file_exists = os.path.isfile(filename)
 
