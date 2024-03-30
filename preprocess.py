@@ -6,7 +6,7 @@ import numpy as np
 from collections import Counter
 import nltk
 from nltk.sentiment import SentimentIntensityAnalyzer
-
+from transformers import BertTokenizer, BertForSequenceClassification, pipeline
 
 '''
 Type 1: Open, High, Low, Close, AdjClose, Volume
@@ -14,7 +14,7 @@ Type 2: Open, High, Low, Close, AdjClose, Volume, sentiment_nltk
 Type 3: Open, High, Low, Close, AdjClose, Volume, sentiment_nltk, macro(yield_rate, vix_close, cpi)
 '''
 
-SET_TYPE = 1
+SET_TYPE = 2
 
 def load_data(filename: str):
     cols = ["Date", "title", "content", "Open", "High", "Low", "Close", "AdjClose", "Volume"]
@@ -30,7 +30,8 @@ def merge_with_reliable(df1, filename2: str):
     df2.rename(columns={'Date': 'date'}, inplace=True)
     df = df1.merge(df2, on="date", how="inner")
     df = df[["date", "Open", "High", "Low", "Close", "Volume", "AdjClose"] \
-            + (["sentiment_nltk"] if SET_TYPE >=2 else [])]
+            + (["sentiment_nltk"] if SET_TYPE >=2 else []) 
+            + (["finBert_sentiment"] if SET_TYPE >=2 else [])]
     # df = df[["date", "Open", "High", "Low", "Close", "Volume", "AdjClose"]]
     df.columns = [col.lower() for col in df.columns]
     return df
@@ -58,7 +59,17 @@ def add_sentiment_nltk(df):
     return df
 
 def add_sentiment_finbert(df):
-    # TODO: modify the df and return df
+    model = BertForSequenceClassification.from_pretrained('FinBert-FinTunning/finbertNLP',num_labels=3)
+    tokenizer = BertTokenizer.from_pretrained('yiyanghkust/finbert-tone')
+    pipe = pipeline("sentiment-analysis", model=model, tokenizer=tokenizer)
+    def helper(text):
+        if len(text) > 512:
+            text = text[:512]
+        result = pipe(text)
+        return result[0]["label"]
+    df["finBert_sentiment"] = df["content"].apply(helper)
+    print(df["finBert_sentiment"] )
+
     return df
 
 def collapse_by_date(df):
@@ -121,8 +132,11 @@ if __name__ == "__main__":
     
     # set type 1 or 2 includes sentiment analysis
     if SET_TYPE == 2 or SET_TYPE == 3:
+        print("Adding nltk Sentiment Classifcation:")
         df = add_sentiment_nltk(df)
-        # df = add_sentiment_finbert(df)
+        print("Adding FinBert Sentiment Classifcation:")
+        df = add_sentiment_finbert(df)
+        print("Adding Mistral Sentiment Classifcation:")
         # df = add_sentiment_mistral(df)
     df = collapse_by_date(df)
     df = merge_with_reliable(df, filename2)
