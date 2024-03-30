@@ -10,9 +10,9 @@ import seaborn as sns
 from lstm_models import LSTM_Simple
 
 LOOKBACK = 10
-EPOCHS = 50
+EPOCHS = 5
 BATCH_SIZE = 16
-COLS = ["up", "close", "open", "high", "low", "sentiment_nltk"]
+COLS = ["up", "close", "open", "high", "low", "adjclose", "sentiment_nltk"]
 OUTPUT = "up"
 
 TRAIN_SIZE = 0.8
@@ -51,7 +51,7 @@ def split_train_test(X, y, train_size):
 
 def train_lstm(X_train, y_train):
     num_features, lookback = X_train.shape[1], X_train.shape[2]
-    lstm = LSTM_Simple(num_features, lookback, 1, LOSS)
+    lstm = LSTM_Simple(num_features, lookback, 1, LOSS, CLASSIFICATION)
 
     model = lstm.get_model()
     history = model.fit(X_train, y_train,
@@ -64,12 +64,12 @@ def train_lstm(X_train, y_train):
         plt.plot(history.history['loss'], label='Training loss')
         plt.plot(history.history['val_loss'], label='Validation loss')
         plt.legend()
-        plt.show()
-
+        
     if SAVE:
         val_filename = f"./output/val/val-ep-{EPOCHS}-lb-{LOOKBACK}.png"
         plt.savefig(val_filename)
 
+    plt.show()
     return model
 
 def forecast(model, X_train, X_test, dates, scaler):

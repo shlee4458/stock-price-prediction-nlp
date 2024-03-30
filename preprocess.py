@@ -3,24 +3,18 @@ import os
 
 import pandas as pd
 import numpy as np
-
-from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig
-from peft import PeftModel
-from peft import LoraConfig, PeftConfig
-import bitsandbytes as bnb
-import torch
-from tqdm import tqdm
 from collections import Counter
-
 import nltk
 from nltk.sentiment import SentimentIntensityAnalyzer
 
-load_dotenv()
 
-model_name = "mistralai/Mistral-7B-Instruct-v0.2"
-hf_token = os.getenv("HF_TOKEN")
-adapter = "./trained-model"
-hub_id = "yishbb"
+'''
+Type 1: Open, High, Low, Close, AdjClose, Volume
+Type 2: Open, High, Low, Close, AdjClose, Volume, sentiment_nltk
+Type 3: Open, High, Low, Close, AdjClose, Volume, sentiment_nltk, macro(yield_rate, vix_close, cpi)
+'''
+
+SET_TYPE = 1
 
 def load_data(filename: str):
     cols = ["Date", "title", "content", "Open", "High", "Low", "Close", "AdjClose", "Volume"]
@@ -35,7 +29,9 @@ def merge_with_reliable(df1, filename2: str):
     df2['Date'] = pd.to_datetime(df2['Date'])
     df2.rename(columns={'Date': 'date'}, inplace=True)
     df = df1.merge(df2, on="date", how="inner")
-    df = df[["date", "Open", "High", "Low", "Close", "Volume", "AdjClose", "sentiment_nltk"]]
+    df = df[["date", "Open", "High", "Low", "Close", "Volume", "AdjClose"] \
+            + (["sentiment_nltk"] if SET_TYPE >=2 else [])]
+    # df = df[["date", "Open", "High", "Low", "Close", "Volume", "AdjClose"]]
     df.columns = [col.lower() for col in df.columns]
     return df
 
@@ -62,7 +58,7 @@ def add_sentiment_nltk(df):
     return df
 
 def add_sentiment_finbert(df):
-    # modify the df and return df
+    # TODO: modify the df and return df
     return df
 
 def collapse_by_date(df):
@@ -97,26 +93,72 @@ def _aggregate_sentiment(arr):
     
     else:
         return 0
-    
-def add_up(df):
-    '''
-    Add a column whether the closing price has gone up compared to the previous day.
-    '''
-    df["up"] = 0
-    df.loc[df["close"].diff() > 0, "up"] = 1
+
+def add_yr(df1):
+    filename = "./data/raw/TBILL10YR.csv"
+    df2 = pd.read_csv(filename)
+    df2['date'] = pd.to_datetime(df2['date'])
+    df = df1.merge(df2, on="date", how="inner")
+    return df
+
+def add_vix(df1):
+    filename = "./data/raw/VIX.csv"
+    df2 = pd.read_csv(filename, usecols=["date", "vix_close"])
+    df2['date'] = pd.to_datetime(df2['date'])
+    df = df1.merge(df2, on="date", how="inner")
+    return df
+
+def add_cpi(df1):
+    filename = "./data/raw/CPIUSAC.csv"
+    df2 = pd.read_csv(filename)
+    df2['date'] = pd.to_datetime(df2['date'])
+    df = df1.merge(df2, on="date", how="inner")
     return df
 
 if __name__ == "__main__":
-    filename1, filename2 = "./data/yahoo_news.csv", "./data/AAPL.csv"
+    filename1, filename2 = "./data/raw/yahoo_news.csv", "./data/raw/AAPL.csv"
     df = load_data(filename1)
-    df = add_sentiment_nltk(df)
-    df = add_sentiment_finbert(df)
-    # df = add_sentiment_mistral(df)
-    df = merge_with_reliable(df, filename2)
+    
+    # set type 1 or 2 includes sentiment analysis
+    if SET_TYPE == 2 or SET_TYPE == 3:
+        df = add_sentiment_nltk(df)
+        # df = add_sentiment_finbert(df)
+        # df = add_sentiment_mistral(df)
     df = collapse_by_date(df)
-    # df = add_up(df)
-    df.to_csv("./data/yahoo_news_preprocessed.csv", index=False)
+    df = merge_with_reliable(df, filename2)
 
+    # set type 3 includes macro
+    if SET_TYPE == 3:
+        df = add_yr(df)
+        df = add_vix(df)
+        df = add_cpi(df)
+
+    save_file_name = f"./data/set{SET_TYPE}.csv"
+    df.to_csv(save_file_name, index=False)
+
+
+# # df = add_up(df)
+# def add_up(df1):
+#     '''
+#     Add a column whether the closing price has gone up compared to the previous day.
+#     '''
+#     df["up"] = 0
+#     df.loc[df["close"].diff() > 0, "up"] = 1
+#     return df
+
+
+# from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig
+# from peft import PeftModel
+# from peft import LoraConfig, PeftConfig
+# import bitsandbytes as bnb
+# import torch
+# from tqdm import tqdm
+    
+# load_dotenv()
+# model_name = "mistralai/Mistral-7B-Instruct-v0.2"
+# hf_token = os.getenv("HF_TOKEN")
+# adapter = "./trained-model"
+# hub_id = "yishbb"
 
 # def predict(X_test, model, tokenizer):
 #     y_pred = []

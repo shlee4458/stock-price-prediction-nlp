@@ -12,18 +12,22 @@ from lstm_models import LSTM_Simple, LSTM_Deep
 LOOKBACK = 60
 EPOCHS = 500
 BATCH_SIZE = 16
-COLS = ["close", "open", "high", "low", "sentiment_nltk"]
-OUTPUT = "close"
+SET_TYPE = 3
+MODEL = "simple"
 
 TRAIN_SIZE = 0.8
 PREDICT_NUM = 1
 VALIDATION_SPLIT = 0.1
 LOSS = "mse"
 CLASSIFICATION = False
-MODEL = "simple"
+
+COLS = ["close", "open", "high", "low", "adjclose"] \
+    + (["sentiment_nltk"] if SET_TYPE >= 2 else []) \
+    + (["yield_rate", "vix_close", "cpi"])
+OUTPUT = "close"
 
 DEBUG = False
-SAVE = True
+SAVE = False
 PLOT = True
 
 # TODO: 
@@ -67,7 +71,6 @@ def train_lstm(X_train, y_train):
                         validation_split=VALIDATION_SPLIT,
                         verbose=1)
 
-    
     if PLOT:
         plt.plot(history.history['loss'], label='Training loss')
         plt.plot(history.history['val_loss'], label='Validation loss')
@@ -75,7 +78,7 @@ def train_lstm(X_train, y_train):
         
     if SAVE:
         version = 0
-        val_filename = f"./output/val/val-ep-{EPOCHS}-lb-{LOOKBACK}-v{version}.png"
+        val_filename = f"./output/val/val-{SET_TYPE}-{MODEL}-{EPOCHS}-{LOOKBACK}-v{version}.png"
         file_exists = os.path.isfile(val_filename)
         
         while file_exists:
@@ -138,7 +141,7 @@ def plot_predict(original, predicted, save=True):
 
     if save:
         version = 0
-        test_filename = f"./output/test/test-md-{MODEL}-ep-{EPOCHS}-lb-{LOOKBACK}-v{version}.png"
+        test_filename = f"./output/test/test-{SET_TYPE}-{MODEL}-{EPOCHS}-{LOOKBACK}-v{version}.png"
         file_exists = os.path.isfile(test_filename)
         
         while file_exists:
@@ -158,8 +161,8 @@ def evaluate_model(y_test, y_pred):
 
 def write_to_csv(error):
     filename = "./output/regression_data.csv"
-    header = ["model", "epoch", "lookback", "num_cols", "error", "output"] # can add different variables
-    row_formatted = f"{MODEL},{EPOCHS},{LOOKBACK},{len(COLS)},{error:.4f},{OUTPUT}"
+    header = ["set_type","model", "epoch", "lookback", "error", "output"] # can add different variables
+    row_formatted = f"{SET_TYPE},{MODEL},{EPOCHS},{LOOKBACK},{error:.4f},{OUTPUT}"
     row = row_formatted.split(",")
     file_exists = os.path.isfile(filename)
 
@@ -175,7 +178,7 @@ def main():
 
     # TODO: add arg parser for automating data collection using .sh
     # load the data
-    filename = "./data/yahoo_news_preprocessed.csv"
+    filename = f"./data/set{SET_TYPE}.csv"
     data, dates, original = load_data(filename)
 
     # scale the data
