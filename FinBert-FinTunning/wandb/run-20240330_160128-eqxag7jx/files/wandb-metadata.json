@@ -1,0 +1,52 @@
+{
+    "os": "Windows-10-10.0.22631-SP0",
+    "python": "3.11.1",
+    "heartbeatAt": "2024-03-30T20:01:28.430820",
+    "startedAt": "2024-03-30T20:01:28.022408",
+    "docker": null,
+    "cuda": null,
+    "args": [],
+    "state": "running",
+    "program": "finBERT.ipynb",
+    "codePathLocal": "finBERT.ipynb",
+    "root": "D:/2024 Spring/CS6120/Prj/stock-price-prediction-nlp",
+    "git": {
+        "remote": "https://github.com/shlee4458/stock-price-prediction-nlp.git",
+        "commit": "e5c5ccf078b0505e0386bf6191814971dfc6f9d3"
+    },
+    "email": "kensh1nhualuoweiyang@gmail.com",
+    "host": "DESKTOP-5V6DD92",
+    "username": "kensh",
+    "executable": "C:\\Users\\kensh\\AppData\\Local\\Programs\\Python\\Python311\\python.exe",
+    "cpu_count": 8,
+    "cpu_count_logical": 16,
+    "cpu_freq": {
+        "current": 3801.0,
+        "min": 0.0,
+        "max": 3801.0
+    },
+    "cpu_freq_per_core": [
+        {
+            "current": 3801.0,
+            "min": 0.0,
+            "max": 3801.0
+        }
+    ],
+    "disk": {
+        "/": {
+            "total": 484.38183212280273,
+            "used": 209.34397506713867
+        }
+    },
+    "gpu": "NVIDIA GeForce RTX 3080",
+    "gpu_count": 1,
+    "gpu_devices": [
+        {
+            "name": "NVIDIA GeForce RTX 3080",
+            "memory_total": 10737418240
+        }
+    ],
+    "memory": {
+        "total": 31.91204071044922
+    }
+}
