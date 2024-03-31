@@ -10,9 +10,9 @@ import seaborn as sns
 from lstm_models import LSTM_Simple
 
 LOOKBACK = 10
-EPOCHS = 5
+EPOCHS = 50
 BATCH_SIZE = 16
-COLS = ["up", "close", "open", "high", "low", "adjclose", "sentiment_nltk"]
+COLS = ["up", "close", "open", "high", "low", "sentiment_nltk"]
 OUTPUT = "up"
 
 TRAIN_SIZE = 0.8

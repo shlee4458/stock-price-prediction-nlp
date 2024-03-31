@@ -1,20 +1,16 @@
-from dotenv import load_dotenv
-import os
-
 import pandas as pd
 import numpy as np
 from collections import Counter
-import nltk
-from nltk.sentiment import SentimentIntensityAnalyzer
 from transformers import BertTokenizer, BertForSequenceClassification, pipeline
 
 '''
 Type 1: Open, High, Low, Close, AdjClose, Volume
-Type 2: Open, High, Low, Close, AdjClose, Volume, sentiment_nltk
-Type 3: Open, High, Low, Close, AdjClose, Volume, sentiment_nltk, macro(yield_rate, vix_close, cpi)
+Type 2: Open, High, Low, Close, AdjClose, Volume, sentiment_bert
+Type 3: Open, High, Low, Close, AdjClose, Volume, sentiment_bert, macro(yield_rate, vix_close, cpi)
 '''
 
-SET_TYPE = 2
+SET_TYPE = 3
+SENTIMENT_MAP = {"Positive":1, "Negative":-1, "Neutral":0}
 
 def load_data(filename: str):
     cols = ["Date", "title", "content", "Open", "High", "Low", "Close", "AdjClose", "Volume"]
@@ -30,32 +26,9 @@ def merge_with_reliable(df1, filename2: str):
     df2.rename(columns={'Date': 'date'}, inplace=True)
     df = df1.merge(df2, on="date", how="inner")
     df = df[["date", "Open", "High", "Low", "Close", "Volume", "AdjClose"] \
-            + (["sentiment_nltk"] if SET_TYPE >=2 else []) 
-            + (["finBert_sentiment"] if SET_TYPE >=2 else [])]
+            + (["sentiment_bert"] if SET_TYPE >=2 else [])]
     # df = df[["date", "Open", "High", "Low", "Close", "Volume", "AdjClose"]]
     df.columns = [col.lower() for col in df.columns]
-    return df
-
-def add_sentiment_nltk(df):
-    # Download NLTK resources if not already downloaded
-    nltk.download('vader_lexicon')
-
-    # Initialize NLTK's sentiment analyzer
-    sid = SentimentIntensityAnalyzer()
-
-    # Function to get sentiment score
-    def get_sentiment_score(text):
-        scores = sid.polarity_scores(text)
-        # Normalize the compound score to range from 0 to 1
-        # Map sentiment scores to 1, -1, or 0
-        if scores['compound'] > 0.05:  # Positive sentiment
-            return 1
-        elif scores['compound'] < -0.05:  # Negative sentiment
-            return -1
-        else:  # Neutral sentiment
-            return 0
-
-    df['sentiment_nltk'] = df['content'].apply(get_sentiment_score)
     return df
 
 def add_sentiment_finbert(df):
@@ -66,10 +39,9 @@ def add_sentiment_finbert(df):
         if len(text) > 512:
             text = text[:512]
         result = pipe(text)
-        return result[0]["label"]
-    df["finBert_sentiment"] = df["content"].apply(helper)
-    print(df["finBert_sentiment"] )
-
+        return SENTIMENT_MAP[result[0]["label"]]
+    df["sentiment_bert"] = df["content"].apply(helper)
+    # print(df["sentiment_bert"] )
     return df
 
 def collapse_by_date(df):
@@ -132,12 +104,7 @@ if __name__ == "__main__":
     
     # set type 1 or 2 includes sentiment analysis
     if SET_TYPE == 2 or SET_TYPE == 3:
-        print("Adding nltk Sentiment Classifcation:")
-        df = add_sentiment_nltk(df)
-        print("Adding FinBert Sentiment Classifcation:")
         df = add_sentiment_finbert(df)
-        print("Adding Mistral Sentiment Classifcation:")
-        # df = add_sentiment_mistral(df)
     df = collapse_by_date(df)
     df = merge_with_reliable(df, filename2)
 
@@ -150,7 +117,32 @@ if __name__ == "__main__":
     save_file_name = f"./data/set{SET_TYPE}.csv"
     df.to_csv(save_file_name, index=False)
 
+# import nltk
+# from nltk.sentiment import SentimentIntensityAnalyzer
+# from dotenv import load_dotenv
+# import os
+# def add_sentiment_nltk(df):
+#     # Download NLTK resources if not already downloaded
+#     nltk.download('vader_lexicon')
 
+#     # Initialize NLTK's sentiment analyzer
+#     sid = SentimentIntensityAnalyzer()
+
+#     # Function to get sentiment score
+#     def get_sentiment_score(text):
+#         scores = sid.polarity_scores(text)
+#         # Normalize the compound score to range from 0 to 1
+#         # Map sentiment scores to 1, -1, or 0
+#         if scores['compound'] > 0.05:  # Positive sentiment
+#             return 1
+#         elif scores['compound'] < -0.05:  # Negative sentiment
+#             return -1
+#         else:  # Neutral sentiment
+#             return 0
+
+#     df['sentiment_nltk'] = df['content'].apply(get_sentiment_score)
+#     return df
+    
 # # df = add_up(df)
 # def add_up(df1):
 #     '''

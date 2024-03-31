@@ -3,27 +3,28 @@ import csv
 import numpy as np
 import pandas as pd
 from matplotlib import pyplot as plt
-from sklearn.preprocessing import StandardScaler
+from sklearn.preprocessing import StandardScaler, MinMaxScaler
 from sklearn.metrics import mean_squared_error
 import seaborn as sns
+from keras.callbacks import TensorBoard
 
-from lstm_models import LSTM_Simple, LSTM_Deep
+from lstm_models import LSTMFactory
 
-LOOKBACK = 60
-EPOCHS = 500
+LOOKBACK = 14
+EPOCHS = 50
 BATCH_SIZE = 16
-SET_TYPE = 3
-MODEL = "simple"
+SET_TYPE = 2
+MODEL = 1
 
-TRAIN_SIZE = 0.8
+TRAIN_SIZE = 0.80
 PREDICT_NUM = 1
 VALIDATION_SPLIT = 0.1
 LOSS = "mse"
 CLASSIFICATION = False
 
 COLS = ["close", "open", "high", "low", "adjclose"] \
-    + (["sentiment_nltk"] if SET_TYPE >= 2 else []) \
-    + (["yield_rate", "vix_close", "cpi"])
+    + (["sentiment_bert"] if SET_TYPE >= 2 else []) \
+    + (["yield_rate", "vix_close", "cpi"] if SET_TYPE == 3 else [])
 OUTPUT = "close"
 
 DEBUG = False
@@ -45,7 +46,10 @@ def split_x_y(data):
     for i in range(LOOKBACK, len(data) - PREDICT_NUM + 1):
         X.append(data[i - LOOKBACK:i, 0:data.shape[1]])
         y.append(data[i + PREDICT_NUM - 1:i + PREDICT_NUM, COLS.index(OUTPUT)]) # use close price as the output
-    return X, y    
+    print(len(X))
+    print(len(y))
+    # exit()
+    return X, y
 
 def split_train_test(X, y, train_size):
     # print(f"This is shape of the data: {data.shape}")
@@ -54,22 +58,18 @@ def split_train_test(X, y, train_size):
 
     return np.array(X_train), np.array(y_train), np.array(X_test), np.array(y_test)
 
-
 def train_lstm(X_train, y_train):
     num_features, lookback = X_train.shape[1], X_train.shape[2]
 
-    # get the lstm model
-    if MODEL == "simple":
-        lstm = LSTM_Simple(num_features, lookback, 1, LOSS, CLASSIFICATION)
-    elif MODEL == "deep":
-        lstm = LSTM_Deep(num_features, lookback, 1, LOSS, CLASSIFICATION)
-
+    lstm = LSTMFactory(num_features, lookback, 1, LOSS, CLASSIFICATION, MODEL)
     model = lstm.get_model()
+    tensorboard_callback = [TensorBoard(log_dir='./logs', histogram_freq=1)] if SAVE else []
     history = model.fit(X_train, y_train,
                         epochs=EPOCHS, 
                         batch_size=BATCH_SIZE, 
                         validation_split=VALIDATION_SPLIT,
-                        verbose=1)
+                        verbose=1,
+                        callbacks=tensorboard_callback)
 
     if PLOT:
         plt.plot(history.history['loss'], label='Training loss')
@@ -90,27 +90,26 @@ def train_lstm(X_train, y_train):
     plt.show()
     return model
 
-def forecast(model, X_train, X_test, dates, scaler):
+def forecast(model, X_train, X_test, y_test, dates, scaler):
     train_size = len(X_train)
     test_dates = dates[train_size:]
-
+    
     # make prediction
     prediction = model.predict(X_test) # X_train: shape = (num_rows, window_size, 1)
+
+    # inverse scale y_pred
     prediction_copies = np.repeat(prediction, len(COLS), axis=-1)
     y_pred_output = scaler.inverse_transform(prediction_copies)[:,0]
     y_pred = pd.DataFrame({'date': np.array(test_dates), OUTPUT: y_pred_output})    
     y_pred['date'] = pd.to_datetime(y_pred['date'])
+    print("test_dates length:", len(test_dates))
+    print("pred_future length", len(y_pred_output))
 
-    # from pandas.tseries.holiday import USFederalHolidayCalendar
-    # from pandas.tseries.offsets import CustomBusinessDay
-    # n_days_for_prediction = len(X_test)
-    # US_BD = CustomBusinessDay(calendar=USFederalHolidayCalendar())
-    # train_dates = dates[:train_size]
-    # forecast_dates = []
-    # predict_period_dates = pd.date_range(list(train_dates)[-1], periods=n_days_for_prediction + 1, freq=US_BD).tolist()
-    # for time_i in predict_period_dates[1:]:
-    #     forecast_dates.append(time_i.date())
-    # predict_data = pd.DataFrame({'date': np.array(forecast_dates), 'close': y_pred_future})
+    # inverse scale y_test
+    y_test_copies = np.repeat(y_test, len(COLS), axis=-1)
+    y_test_output = scaler.inverse_transform(y_test_copies)[:,0]
+    y_test = pd.DataFrame({'date': np.array(test_dates), OUTPUT: y_test_output})
+    y_test['date'] = pd.to_datetime(y_test['date'])
 
     if DEBUG:
         # print("Last train_date: ", list(train_dates)[-1])
@@ -124,18 +123,18 @@ def forecast(model, X_train, X_test, dates, scaler):
         print("test_dates length:", len(test_dates))
         print("pred_future length", len(y_pred_output))
 
-    return y_pred
+    return y_test, y_pred
 
 def plot_predict(original, predicted, save=True):
     original = original[['date', OUTPUT]]
     original['date'] = pd.to_datetime(original['date'])
-    train_size = int(TRAIN_SIZE * len(original))
-    train, test = original[:train_size], original[train_size:]
+    # train_size = int(TRAIN_SIZE * len(original))
+    # train, test = original[:train_size], original[train_size:]
 
     if PLOT:
         plt.figure(figsize=(15, 9))
-        sns.lineplot(data=train, x='date', y=OUTPUT, label='Train', color='blue')
-        sns.lineplot(data=test, x='date', y=OUTPUT, label='Test', color='green')
+        sns.lineplot(data=original, x='date', y=OUTPUT, label='Train', color='blue')
+        # sns.lineplot(data=test, x='date', y=OUTPUT, label='Test', color='green')
         sns.lineplot(data=predicted, x='date', y=OUTPUT, label='Predicted', color='orange')
         plt.legend()
 
@@ -154,7 +153,10 @@ def plot_predict(original, predicted, save=True):
 
 def evaluate_model(y_test, y_pred):
     y_pred = y_pred[[OUTPUT]].values
+    y_test = y_test[[OUTPUT]].values
+    # print(f"y_pred: {y_pred}, y_test: {y_test}")
     mse = mean_squared_error(y_test, y_pred)
+    print(f"MSE: {mse}")
     return mse
     # error = np.sqrt(mse)
     # return error
@@ -193,7 +195,7 @@ def main():
     model = train_lstm(X_train, y_train)
 
     # predict and plot the data
-    y_pred = forecast(model, X_train, X_test, dates, scaler)
+    y_test, y_pred = forecast(model, X_train, X_test, y_test, dates, scaler)
     plot_predict(original, y_pred, SAVE)
 
     # evaluate the test and actual
