@@ -11,7 +11,7 @@ from keras.callbacks import TensorBoard
 from lstm_models import LSTMFactory
 
 LOOKBACK = 14
-EPOCHS = 50
+EPOCHS = 500
 BATCH_SIZE = 16
 SET_TYPE = 2
 MODEL = 1
@@ -28,7 +28,7 @@ COLS = ["close", "open", "high", "low", "adjclose"] \
 OUTPUT = "close"
 
 DEBUG = False
-SAVE = False
+SAVE = True
 PLOT = True
 
 # TODO: 
