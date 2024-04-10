@@ -13,7 +13,7 @@ class LSTMFactory:
     def __init__(self, num_features, lookback, output_size, loss, classification=False, model_type=1):
         model_map = {1: LSTM_1,
                      2: LSTM_2,
-                     3: LSTM_3,
+                    #  3: LSTM_3,
                      }
 
         self.model = model_map[model_type](num_features, lookback, output_size, loss, classification)
@@ -26,7 +26,6 @@ class LSTM_1():
     def __init__(self, num_features, lookback, output_size, loss, classification=False):
         model = Sequential()
         model.add(LSTM(64, activation='relu', input_shape=(num_features, lookback), return_sequences=True))
-        # model.add(Dropout(0.2))
         model.add(LSTM(32, activation='relu', return_sequences=False))
         model.add(Dropout(0.2))
         model.add(Dense(output_size))
@@ -47,8 +46,10 @@ class LSTM_2():
         model.add(Dropout(0.3))
         model.add(LSTM(128, activation='relu', return_sequences=True))
         model.add(Dropout(0.3))
-        model.add(LSTM(128, activation='relu', return_sequences=False))
+        model.add(LSTM(128, activation='relu', return_sequences=True))
         model.add(Dropout(0.3))
+        model.add(LSTM(128, activation='relu', return_sequences=False))
+        model.add(Dropout(0.3))        
         model.add(Dense(output_size))
         model.compile(optimizer='adam', loss=loss)
 
@@ -57,21 +58,21 @@ class LSTM_2():
     def get_model(self):
         return self.model 
 
-class LSTM_3():
-    def __init__(self, num_features, lookback, output_size, loss, classification=False):
-        model = Sequential()
-        model.add(LSTM(128, activation='relu', input_shape=(num_features, lookback), return_sequences=True))
-        model.add(Dropout(0.4))
-        # model.add(RepeatVector(3))
-        model.add(TimeDistributed(Dense(output_size)))
-        # model.add(LSTM(128, activation='relu', return_sequences=True))
-        # model.add(Dropout(0.4))
-        # model.add(LSTM(128, activation='relu', return_sequences=False))
-        # model.add(Dropout(0.4))
-        model.add(Dense(output_size))
-        model.compile(optimizer='adam', loss=loss)
+# class LSTM_3():
+#     def __init__(self, num_features, lookback, output_size, loss, classification=False):
+#         model = Sequential()
+#         model.add(LSTM(128, activation='relu', input_shape=(num_features, lookback), return_sequences=True))
+#         model.add(Dropout(0.4))
+#         # model.add(RepeatVector(3))
+#         model.add(TimeDistributed(Dense(output_size)))
+#         # model.add(LSTM(128, activation='relu', return_sequences=True))
+#         # model.add(Dropout(0.4))
+#         # model.add(LSTM(128, activation='relu', return_sequences=False))
+#         # model.add(Dropout(0.4))
+#         model.add(Dense(output_size))
+#         model.compile(optimizer='adam', loss=loss)
 
-        self.model = model
+#         self.model = model
     
-    def get_model(self):
-        return self.model 
+#     def get_model(self):
+#         return self.model 

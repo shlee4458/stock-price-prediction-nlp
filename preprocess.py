@@ -66,7 +66,7 @@ def _aggregate_sentiment(arr):
 
     # pos and neg count are the same
     if most_count == pos and most_count == neg: 
-        return 0  
+        return 0
 
     elif most_count == pos:
         return 1

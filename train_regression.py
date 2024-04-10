@@ -10,8 +10,8 @@ from keras.callbacks import TensorBoard
 
 from lstm_models import LSTMFactory
 
-LOOKBACK = 14
-EPOCHS = 500
+LOOKBACK = 60
+EPOCHS = 100
 BATCH_SIZE = 16
 SET_TYPE = 2
 MODEL = 1
@@ -22,7 +22,7 @@ VALIDATION_SPLIT = 0.1
 LOSS = "mse"
 CLASSIFICATION = False
 
-COLS = ["close", "open", "high", "low", "adjclose"] \
+COLS = ["close", "open", "high", "low", "adjclose", "volume"] \
     + (["sentiment_bert"] if SET_TYPE >= 2 else []) \
     + (["yield_rate", "vix_close", "cpi"] if SET_TYPE == 3 else [])
 OUTPUT = "close"
@@ -203,6 +203,9 @@ def main():
 
     # write the result to a csv file for analysis
     write_to_csv(error)
+
+    # get model summary
+    model.summary()
 
 if __name__ == "__main__":
     main()
