@@ -2,6 +2,7 @@ import nltk
 from nltk.sentiment.vader import SentimentIntensityAnalyzer
 import pandas as pd
 import numpy as np
+import nltk
 from collections import Counter
 from transformers import BertTokenizer, BertForSequenceClassification, pipeline
 
@@ -11,7 +12,7 @@ Type 2: Open, High, Low, Close, AdjClose, Volume, sentiment_bert
 Type 3: Open, High, Low, Close, AdjClose, Volume, sentiment_bert, macro(yield_rate, vix_close, cpi)
 '''
 
-SET_TYPE = 3
+SET_TYPE = 2
 SENTIMENT_MAP = {"Positive":1, "Negative":-1, "Neutral":0}
 
 def load_data(filename: str):
