@@ -14,6 +14,7 @@ LOOKBACK = 60
 EPOCHS = 100
 BATCH_SIZE = 16
 SET_TYPE = 2
+BERT = True
 MODEL = 1
 
 TRAIN_SIZE = 0.80
@@ -23,7 +24,7 @@ LOSS = "mse"
 CLASSIFICATION = False
 
 COLS = ["close", "open", "high", "low", "adjclose", "volume"] \
-    + (["sentiment_bert"] if SET_TYPE >= 2 else []) \
+    + (["sentiment_bert"] if SET_TYPE >= 2 and BERT else ["sentiment_nltk"]) \
     + (["yield_rate", "vix_close", "cpi"] if SET_TYPE == 3 else [])
 OUTPUT = "close"
 
@@ -78,7 +79,7 @@ def train_lstm(X_train, y_train):
         
     if SAVE:
         version = 0
-        val_filename = f"./output/val/val-{SET_TYPE}-{MODEL}-{EPOCHS}-{LOOKBACK}-v{version}.png"
+        val_filename = f"./output/val/val-{SET_TYPE}-{MODEL}-{EPOCHS}-{LOOKBACK}-{'bert' if BERT else 'nltk'}-v{version}.png"
         file_exists = os.path.isfile(val_filename)
         
         while file_exists:
@@ -140,7 +141,7 @@ def plot_predict(original, predicted, save=True):
 
     if save:
         version = 0
-        test_filename = f"./output/test/test-{SET_TYPE}-{MODEL}-{EPOCHS}-{LOOKBACK}-v{version}.png"
+        test_filename = f"./output/test/test-{SET_TYPE}-{MODEL}-{EPOCHS}-{LOOKBACK}-{'bert' if BERT else 'nltk'}-v{version}-.png"
         file_exists = os.path.isfile(test_filename)
         
         while file_exists:
@@ -158,13 +159,11 @@ def evaluate_model(y_test, y_pred):
     mse = mean_squared_error(y_test, y_pred)
     print(f"MSE: {mse}")
     return mse
-    # error = np.sqrt(mse)
-    # return error
 
 def write_to_csv(error):
     filename = "./output/regression_data.csv"
-    header = ["set_type","model", "epoch", "lookback", "error", "output"] # can add different variables
-    row_formatted = f"{SET_TYPE},{MODEL},{EPOCHS},{LOOKBACK},{error:.4f},{OUTPUT}"
+    header = ["set_type","model", "epoch", "lookback", "error", "output", "sentiment"] # can add different variables
+    row_formatted = f"{SET_TYPE},{MODEL},{EPOCHS},{LOOKBACK},{error:.4f},{OUTPUT},{'bert' if BERT else 'nltk'}"
     row = row_formatted.split(",")
     file_exists = os.path.isfile(filename)
 
@@ -175,6 +174,14 @@ def write_to_csv(error):
             writer.writerow(header)
         writer.writerow(row)
     return
+
+def write_pred_actual_csv(y_test, y_pred, error):
+    filename = f"./output/pred-actual/{error:.2f}-{SET_TYPE}-{LOOKBACK}-{'bert' if BERT else 'nltk'}.csv"
+    df = pd.merge(y_test, y_pred, left_index=True, right_index=True)
+    df.rename(columns={'date_x': 'date', 'close_x': 'actual', 'close_y': 'pred'}, inplace=True)
+    df.set_index('date', inplace=True)
+    df = df[["actual", "pred"]]
+    df.to_csv(filename)
 
 def main():
 
@@ -200,9 +207,13 @@ def main():
 
     # evaluate the test and actual
     error = evaluate_model(y_test, y_pred)
+    write_pred_actual_csv(y_test, y_pred, error)
 
     # write the result to a csv file for analysis
     write_to_csv(error)
+
+    # write the pred and actual as a file
+    
 
     # get model summary
     model.summary()
