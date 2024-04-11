@@ -1,3 +1,5 @@
+import nltk
+from nltk.sentiment.vader import SentimentIntensityAnalyzer
 import pandas as pd
 import numpy as np
 from collections import Counter
@@ -44,15 +46,39 @@ def add_sentiment_finbert(df):
     # print(df["sentiment_bert"] )
     return df
 
+def add_sentiment_nltk(df):
+    # Download NLTK resources if not already downloaded
+    nltk.download('vader_lexicon')
+
+    # Initialize NLTK's sentiment analyzer
+    sid = SentimentIntensityAnalyzer()
+
+    # Function to get sentiment score
+    def get_sentiment_score(text):
+        scores = sid.polarity_scores(text)
+        return scores["compound"]
+
+    df['sentiment_nltk'] = df['content'].apply(get_sentiment_score)
+    df = df[['date', 'sentiment_nltk']]
+    return df
+
 def collapse_by_date(df):
     '''
     There are multiple entries for each days for news headline.
     '''
     df = df.groupby('date').agg({
-        col: "first" if col not in ["sentiment_nltk"] else _aggregate_sentiment for col in df.columns
+        col: "first" if col not in ["sentiment_bert"] else _aggregate_sentiment for col in df.columns
     })
     df = df.reset_index(drop=True) 
     return df
+
+def collapse_by_date_join_articles(df):
+    df = df[['date', 'content']]
+    df = df.groupby('date')['content'].apply(_join_articles).reset_index()
+    return df
+
+def _join_articles(article):
+    return " ".join(article)
 
 def _aggregate_sentiment(arr):
     '''
@@ -105,8 +131,11 @@ if __name__ == "__main__":
     # set type 1 or 2 includes sentiment analysis
     if SET_TYPE == 2 or SET_TYPE == 3:
         df = add_sentiment_finbert(df)
-    df = collapse_by_date(df)
-    df = merge_with_reliable(df, filename2)
+        df = collapse_by_date(df)
+    elif SET_TYPE == 4:
+        df = collapse_by_date_join_articles(df)
+        df = add_sentiment_nltk(df)
+    # df = merge_with_reliable(df, filename2)
 
     # set type 3 includes macro
     if SET_TYPE == 3:
@@ -114,34 +143,14 @@ if __name__ == "__main__":
         df = add_vix(df)
         df = add_cpi(df)
 
-    save_file_name = f"./data/set{SET_TYPE}.csv"
+    save_file_name = f"./data/set{SET_TYPE}-nltk.csv"
     df.to_csv(save_file_name, index=False)
 
 # import nltk
 # from nltk.sentiment import SentimentIntensityAnalyzer
 # from dotenv import load_dotenv
 # import os
-# def add_sentiment_nltk(df):
-#     # Download NLTK resources if not already downloaded
-#     nltk.download('vader_lexicon')
 
-#     # Initialize NLTK's sentiment analyzer
-#     sid = SentimentIntensityAnalyzer()
-
-#     # Function to get sentiment score
-#     def get_sentiment_score(text):
-#         scores = sid.polarity_scores(text)
-#         # Normalize the compound score to range from 0 to 1
-#         # Map sentiment scores to 1, -1, or 0
-#         if scores['compound'] > 0.05:  # Positive sentiment
-#             return 1
-#         elif scores['compound'] < -0.05:  # Negative sentiment
-#             return -1
-#         else:  # Neutral sentiment
-#             return 0
-
-#     df['sentiment_nltk'] = df['content'].apply(get_sentiment_score)
-#     return df
     
 # # df = add_up(df)
 # def add_up(df1):
