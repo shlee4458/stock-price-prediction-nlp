@@ -10,11 +10,11 @@ from keras.callbacks import TensorBoard
 
 from lstm_models import LSTMFactory
 
-LOOKBACK = 60
+LOOKBACK = 14
 EPOCHS = 100
 BATCH_SIZE = 16
-SET_TYPE = 2
-BERT = True
+SET_TYPE = 1
+BERT = False
 MODEL = 1
 
 TRAIN_SIZE = 0.80
@@ -24,7 +24,7 @@ LOSS = "mse"
 CLASSIFICATION = False
 
 COLS = ["close", "open", "high", "low", "adjclose", "volume"] \
-    + (["sentiment_bert"] if SET_TYPE >= 2 and BERT else ["sentiment_nltk"]) \
+    + (["sentiment_bert"] if SET_TYPE >= 2 and BERT else []) \
     + (["yield_rate", "vix_close", "cpi"] if SET_TYPE == 3 else [])
 OUTPUT = "close"
 
