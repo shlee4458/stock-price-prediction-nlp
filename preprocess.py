@@ -161,22 +161,22 @@ if __name__ == "__main__":
     
     # set type 1 or 2 includes sentiment analysis
     if SET_TYPE == 2 or SET_TYPE == 3:
-        # df = add_sentiment_finbert(df)
+        df = add_sentiment_finbert(df)
         df = sentiment_finbert_truncate(df)
         df = collapse_by_date(df)
         
-    # elif SET_TYPE == 4:
-    #     df = collapse_by_date_join_articles(df)
-    #     df = add_sentiment_nltk(df)
-    # # df = merge_with_reliable(df, filename2)
+    elif SET_TYPE == 4:
+        df = collapse_by_date_join_articles(df)
+        df = add_sentiment_nltk(df)
+    # df = merge_with_reliable(df, filename2)
 
-    # # set type 3 includes macro
-    # if SET_TYPE == 3:
-    #     df = add_yr(df)
-    #     df = add_vix(df)
-    #     df = add_cpi(df)
+    # set type 3 includes macro
+    if SET_TYPE == 3:
+        df = add_yr(df)
+        df = add_vix(df)
+        df = add_cpi(df)
 
-    save_file_name = f"./data/set{SET_TYPE}Truncated-nltk.csv"
+    save_file_name = f"./data/set{SET_TYPE}-nltk.csv"
     df.to_csv(save_file_name, index=False)
 
 # import nltk
