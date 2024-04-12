@@ -3,7 +3,9 @@ from nltk.sentiment.vader import SentimentIntensityAnalyzer
 import pandas as pd
 import numpy as np
 from collections import Counter
+import torch
 from transformers import BertTokenizer, BertForSequenceClassification, pipeline
+from tqdm import tqdm
 
 '''
 Type 1: Open, High, Low, Close, AdjClose, Volume
@@ -13,6 +15,16 @@ Type 3: Open, High, Low, Close, AdjClose, Volume, sentiment_bert, macro(yield_ra
 
 SET_TYPE = 3
 SENTIMENT_MAP = {"Positive":1, "Negative":-1, "Neutral":0}
+
+sentiment_model = BertForSequenceClassification.from_pretrained('yiyanghkust/finbert-tone',num_labels=3)
+fineTune_model = BertForSequenceClassification.from_pretrained('FinBert-FinTunning/finbertNLP',num_labels=3)
+sentiment_tokenizer = BertTokenizer.from_pretrained('yiyanghkust/finbert-tone')
+device = 0 if torch.cuda.is_available() else -1
+summarizerModel = "marianna13/flan-t5-base-summarization"
+summarizer_pipe = pipeline("summarization", model=summarizerModel, max_length=512, min_length=10, device=device)
+sentiment_pipe = pipeline("sentiment-analysis", model=sentiment_model, tokenizer=sentiment_tokenizer, device=device)
+truncated_pipe = pipeline("sentiment-analysis", model=fineTune_model, tokenizer=sentiment_tokenizer, device=device,truncation=True,padding="max_length", max_length=512)
+
 
 def load_data(filename: str):
     cols = ["Date", "title", "content", "Open", "High", "Low", "Close", "AdjClose", "Volume"]
@@ -33,17 +45,36 @@ def merge_with_reliable(df1, filename2: str):
     df.columns = [col.lower() for col in df.columns]
     return df
 
+def process_batch(texts, batch_size=128):
+    results = []
+    # Wrap the range function with tqdm for a progress bar
+    for i in tqdm(range(0, len(texts), batch_size), desc="Processing batches"):
+        batch = texts[i:i+batch_size]
+
+        summarized_texts = summarizer_pipe(batch)
+        summarized_contents = [item['summary_text'] for item in summarized_texts]
+        sentiments = sentiment_pipe(summarized_contents)
+
+        results.extend([SENTIMENT_MAP[item["label"]] for item in sentiments])
+
+    return results
+
 def add_sentiment_finbert(df):
-    model = BertForSequenceClassification.from_pretrained('FinBert-FinTunning/finbertNLP',num_labels=3)
-    tokenizer = BertTokenizer.from_pretrained('yiyanghkust/finbert-tone')
-    pipe = pipeline("sentiment-analysis", model=model, tokenizer=tokenizer)
+    texts = df['content'].tolist()
+    batch_results = process_batch(texts, 128)
+    df['sentiment_bert'] = batch_results
+    return df
+
+counter = 0
+def sentiment_finbert_truncate(df):
+    
     def helper(text):
-        if len(text) > 512:
-            text = text[:512]
-        result = pipe(text)
-        return SENTIMENT_MAP[result[0]["label"]]
-    df["sentiment_bert"] = df["content"].apply(helper)
-    # print(df["sentiment_bert"] )
+        global counter
+        print(counter)
+        counter = counter + 1
+        sentiment = truncated_pipe(text)
+        return SENTIMENT_MAP[sentiment[0]["label"]]
+    df["sentiment_bert_truncate"] = df["content"].apply(helper)
     return df
 
 def add_sentiment_nltk(df):
@@ -131,7 +162,9 @@ if __name__ == "__main__":
     # set type 1 or 2 includes sentiment analysis
     if SET_TYPE == 2 or SET_TYPE == 3:
         df = add_sentiment_finbert(df)
+        df = sentiment_finbert_truncate(df)
         df = collapse_by_date(df)
+        
     elif SET_TYPE == 4:
         df = collapse_by_date_join_articles(df)
         df = add_sentiment_nltk(df)
