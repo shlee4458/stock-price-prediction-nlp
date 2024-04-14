@@ -7,8 +7,3 @@ set,model,sentiment,loss
 2,XGBoost,bert,0.4877
 3,XGBoost,nltk,0.4606
 3,XGBoost,bert,0.4589
-1,LSTM,bert,0.9201
-2,LSTM,nltk,0.8810
-2,LSTM,bert,2.3668
-3,LSTM,nltk,0.7318
-3,LSTM,bert,1.0203
