@@ -7,3 +7,13 @@ set,model,sentiment,loss
 2,XGBoost,bert,0.4877
 3,XGBoost,nltk,0.4606
 3,XGBoost,bert,0.4589
+1,xgboost,bert,0.5037
+2,xgboost,nltk,0.4895
+2,xgboost,bert,0.4877
+3,xgboost,nltk,0.4606
+3,xgboost,bert,0.4589
+1,xgboost,bert,0.5037
+2,xgboost,nltk,0.4895
+2,xgboost,bert,0.4877
+3,xgboost,nltk,0.4606
+3,xgboost,bert,0.4589
